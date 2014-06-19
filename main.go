@@ -5,14 +5,6 @@ import (
 	"os/exec"
 )
 
-type Script string
-
-func (this *Script) append(s string) {
-	*this = Script(string(*this) + s + "\n")
-}
-
-var tmux_script Script
-
 type Pane struct {
 	number   int
 	commands []string
@@ -26,22 +18,43 @@ func NewPane(number int, window *Window) *Pane {
 	p.window = window
 	return p
 }
+
 func (this *Pane) Exec(command string) {
-	Exec("tmux", "send-keys", "-t", this.window.session.name+":"+fmt.Sprint(this.window.number)+"."+fmt.Sprint(this.number), command, "C-m")
+	exec_command("tmux", "send-keys", "-t", this.getTargetName(), command, "C-m")
 }
 
 func (this *Pane) Vsplit() *Pane {
-	Exec("tmux", "split-window", "-h", "-t", this.window.session.name+":"+fmt.Sprint(this.window.number)+"."+fmt.Sprint(this.number))
+	exec_command("tmux", "split-window", "-h", "-t", this.getTargetName())
 	return this.window.AddPane()
 }
 
 func (this *Pane) Split() *Pane {
-	Exec("tmux", "split-window", "-v", "-t", this.window.session.name+":"+fmt.Sprint(this.window.number)+"."+fmt.Sprint(this.number))
+	exec_command("tmux", "split-window", "-v", "-t", this.getTargetName())
 	return this.window.AddPane()
 }
 
 func (this *Pane) ResizeRight(num int) {
-	Exec("tmux", "resize-pane", "-t", this.window.session.name+":"+fmt.Sprint(this.window.number)+"."+fmt.Sprint(this.number), "-R", fmt.Sprint(num))
+	this.resize("R", num)
+}
+
+func (this *Pane) ResizeLeft(num int) {
+	this.resize("L", num)
+}
+
+func (this *Pane) ResizeUp(num int) {
+	this.resize("U", num)
+}
+
+func (this *Pane) ResizeDown(num int) {
+	this.resize("U", num)
+}
+
+func (this *Pane) resize(prefix string,num int) {
+	exec_command("tmux", "resize-pane", "-t", this.getTargetName(), "-" + prefix, fmt.Sprint(num))
+}
+
+func (this *Pane) getTargetName() string{
+	return this.window.session.name+":"+fmt.Sprint(this.window.number)+"."+fmt.Sprint(this.number)
 }
 
 type Window struct {
@@ -66,8 +79,8 @@ func newWindow(number int, name string, session *Session) *Window {
 }
 func NewWindow(number int, name string, session *Session) *Window {
 	w := newWindow(number, name, session)
-	Exec("tmux", "new-window", "-t", w.session.name+":"+fmt.Sprint(w.number), "-n", w.name)
-	Exec("tmux", "rename-window", "-t", w.session.name+":"+fmt.Sprint(w.number), w.name)
+	exec_command("tmux", "new-window", "-t", w.session.name+":"+fmt.Sprint(w.number), "-n", w.name)
+	exec_command("tmux", "rename-window", "-t", w.session.name+":"+fmt.Sprint(w.number), w.name)
 	return w
 }
 
@@ -87,7 +100,7 @@ func (this *Window) Exec(command string) {
 }
 
 func (this *Window) Select() {
-	Exec("tmux", "select-window", "-t", this.session.name+":"+fmt.Sprint(this.number))
+	exec_command("tmux", "select-window", "-t", this.session.name+":"+fmt.Sprint(this.number))
 }
 
 type Session struct {
@@ -100,8 +113,8 @@ func NewSession(name string) *Session {
 	s := new(Session)
 	s.name = name
 	s.windows = make([]*Window, 0)
-	Exec("tmux", "kill-session", "-t", s.name)
-	Exec("tmux", "new-session", "-d", "-s", s.name, "-n tmp")
+	exec_command("tmux", "kill-session", "-t", s.name)
+	exec_command("tmux", "new-session", "-d", "-s", s.name, "-n tmp")
 	return s
 }
 
@@ -112,6 +125,6 @@ func (this *Session) AddWindow(name string) *Window {
 	return w
 }
 
-func Exec(args ...string) {
+func exec_command(args ...string) {
 	exec.Command(args[0], args[1:]...).Run()
 }
