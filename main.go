@@ -1,35 +1,36 @@
-package tmux
+package gomux
 
 import (
 	"fmt"
-	"os/exec"
+	"io"
+	"strings"
 )
 
 type Pane struct {
-	number   int
+	Number   int
 	commands []string
 	window   *Window
 }
 
 func NewPane(number int, window *Window) *Pane {
 	p := new(Pane)
-	p.number = number
+	p.Number = number
 	p.commands = make([]string, 0)
 	p.window = window
 	return p
 }
 
 func (this *Pane) Exec(command string) {
-	exec_command("tmux", "send-keys", "-t", this.getTargetName(), command, "C-m")
+	fmt.Fprintf(this.window.session.writer, "tmux send-keys -t \"%s\" \"%s\" %s\n", this.getTargetName(), strings.Replace(command, "\"", "\\\"", -1), "C-m")
 }
 
 func (this *Pane) Vsplit() *Pane {
-	exec_command("tmux", "split-window", "-h", "-t", this.getTargetName())
+	fmt.Fprintf(this.window.session.writer, "tmux split-window -h -t \"%s\"\n", this.getTargetName())
 	return this.window.AddPane()
 }
 
 func (this *Pane) Split() *Pane {
-	exec_command("tmux", "split-window", "-v", "-t", this.getTargetName())
+	fmt.Fprintf(this.window.session.writer, "tmux split-window -v -t \"%s\"\n", this.getTargetName())
 	return this.window.AddPane()
 }
 
@@ -49,17 +50,18 @@ func (this *Pane) ResizeDown(num int) {
 	this.resize("U", num)
 }
 
-func (this *Pane) resize(prefix string,num int) {
-	exec_command("tmux", "resize-pane", "-t", this.getTargetName(), "-" + prefix, fmt.Sprint(num))
+func (this *Pane) resize(prefix string, num int) {
+	fmt.Fprintf(this.window.session.writer, "tmux resize-pane -t \"%s\" -%s\n", this.getTargetName(), prefix, fmt.Sprint(num))
 }
 
-func (this *Pane) getTargetName() string{
-	return this.window.session.name+":"+fmt.Sprint(this.window.number)+"."+fmt.Sprint(this.number)
+func (this *Pane) getTargetName() string {
+	return this.window.session.Name + ":" + fmt.Sprint(this.window.Number) + "." + fmt.Sprint(this.Number)
 }
 
+// Window Represent a tmux window. You usually should not create an instance of Window directly.
 type Window struct {
-	number           int
-	name             string
+	Number           int
+	Name             string
 	session          *Session
 	panes            []*Pane
 	split_commands   []string
@@ -68,22 +70,25 @@ type Window struct {
 
 func newWindow(number int, name string, session *Session) *Window {
 	w := new(Window)
-	w.name = name
-	w.number = number
+	w.Name = name
+	w.Number = number
 	w.session = session
 	w.next_pane_number = 0
 	w.panes = make([]*Pane, 0)
 	w.split_commands = make([]string, 0)
 	w.AddPane()
-	return w
-}
-func NewWindow(number int, name string, session *Session) *Window {
-	w := newWindow(number, name, session)
-	exec_command("tmux", "new-window", "-t", w.session.name+":"+fmt.Sprint(w.number), "-n", w.name)
-	exec_command("tmux", "rename-window", "-t", w.session.name+":"+fmt.Sprint(w.number), w.name)
+	if number != 0 {
+		fmt.Fprintf(session.writer, "tmux new-window %s -n \"%s\"\n", w.t(), w.Name)
+	}
+	fmt.Fprintf(session.writer, "tmux rename-window %s \"%s\"\n", w.t(), w.Name)
 	return w
 }
 
+func (this *Window) t() string {
+	return fmt.Sprintf("-t \"%s:%s\"", this.session.Name, fmt.Sprint(this.Number))
+}
+
+// Create a new Pane and add to this window
 func (this *Window) AddPane() *Pane {
 	pane := NewPane(this.next_pane_number, this)
 	this.panes = append(this.panes, pane)
@@ -91,40 +96,48 @@ func (this *Window) AddPane() *Pane {
 	return pane
 }
 
+// Find and return the Pane object by the number
 func (this *Window) Pane(number int) *Pane {
 	return this.panes[number]
 }
 
+// Executes a command on the first pane of this window
+//
+// // example
+// // example
 func (this *Window) Exec(command string) {
 	this.Pane(0).Exec(command)
 }
 
 func (this *Window) Select() {
-	exec_command("tmux", "select-window", "-t", this.session.name+":"+fmt.Sprint(this.number))
+	fmt.Fprintf(this.session.writer, "tmux select-window -t \"%s:%s\"\n", this.session.Name, fmt.Sprint(this.Number))
 }
 
+// Session represents a tmux session.
+//
+// Use the method NewSession to create a Session instance.
 type Session struct {
-	name               string
-	next_window_number int
+	Name               string
 	windows            []*Window
+	next_window_number int
+	writer             io.Writer
 }
 
-func NewSession(name string) *Session {
+// Creates a new Tmux Session. It kill any existing session with the provided name.
+func NewSession(name string, writer io.Writer) *Session {
 	s := new(Session)
-	s.name = name
+	s.writer = writer
+	s.Name = name
 	s.windows = make([]*Window, 0)
-	exec_command("tmux", "kill-session", "-t", s.name)
-	exec_command("tmux", "new-session", "-d", "-s", s.name, "-n tmp")
+	fmt.Fprintf(writer, "tmux kill-session -t \"%s\"\n", s.Name)
+	fmt.Fprintf(writer, "tmux new-session -d -s \"%s\" -n tmp\n", s.Name)
 	return s
 }
 
+// Creates window with provided name for this session
 func (this *Session) AddWindow(name string) *Window {
-	w := NewWindow(this.next_window_number, name, this)
+	w := newWindow(this.next_window_number, name, this)
 	this.windows = append(this.windows, w)
 	this.next_window_number = this.next_window_number + 1
 	return w
-}
-
-func exec_command(args ...string) {
-	exec.Command(args[0], args[1:]...).Run()
 }

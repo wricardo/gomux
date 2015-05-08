@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/wricardo/gomux"
 )
@@ -9,7 +9,7 @@ import (
 func main() {
 	session_name := "SESSION_NAME"
 
-	s := tmux.NewSession(session_name)
+	s := gomux.NewSession(session_name, os.Stdout)
 
 	//WINDOW 1
 	w1 := s.AddWindow("LOGS")
@@ -31,9 +31,4 @@ func main() {
 	w2p1.Exec("ls -la")
 
 	w2p0.ResizeRight(30)
-
-	fmt.Println("Tmux Session \"", session_name, "\" created\n")
-	fmt.Println("Now you can run:")
-	fmt.Println("tmux attach -t ", session_name)
-
 }
