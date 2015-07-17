@@ -123,7 +123,7 @@ type Session struct {
 	writer             io.Writer
 }
 
-// Creates a new Tmux Session. It kill any existing session with the provided name.
+// Creates a new Tmux Session. It will kill any existing session with the provided name.
 func NewSession(name string, writer io.Writer) *Session {
 	s := new(Session)
 	s.writer = writer
