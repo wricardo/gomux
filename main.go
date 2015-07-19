@@ -119,6 +119,7 @@ func (this *Window) Select() {
 type Session struct {
 	Name               string
 	windows            []*Window
+	directory          string
 	next_window_number int
 	writer             io.Writer
 }
@@ -129,8 +130,26 @@ func NewSession(name string, writer io.Writer) *Session {
 	s.writer = writer
 	s.Name = name
 	s.windows = make([]*Window, 0)
+	return NewSessionRaw(s, writer)
+}
+
+// Creates a new Tmux Session with specific directory as the default dir. It kill any existing session with the provided name.
+func NewSessionOnDir(name string, directory string, writer io.Writer) *Session {
+	s := new(Session)
+	s.writer = writer
+	s.Name = name
+	s.windows = make([]*Window, 0)
+	s.directory = directory
+	return NewSessionRaw(s, writer)
+}
+
+func NewSessionRaw(s *Session, writer io.Writer) *Session {
+	var c string
+	if s.directory != "" {
+		c = " -c '" + s.directory + "'"
+	}
 	fmt.Fprintf(writer, "tmux kill-session -t \"%s\"\n", s.Name)
-	fmt.Fprintf(writer, "tmux new-session -d -s \"%s\" -n tmp\n", s.Name)
+	fmt.Fprintf(writer, "tmux new-session -d %s -s \"%s\" -n tmp\n", c, s.Name)
 	return s
 }
 
