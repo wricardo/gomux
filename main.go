@@ -125,13 +125,35 @@ type Session struct {
 
 // Creates a new Tmux Session. It will kill any existing session with the provided name.
 func NewSession(name string, writer io.Writer) *Session {
+	p := NewSessionAttr{
+		Name: name,
+	}
+	return NewSessionParams(p, writer)
+}
+
+type NewSessionAttr struct {
+	Name      string
+	Directory string
+}
+
+// Creates a new Tmux Session based on NewSessionAttr. It will kill any existing session with the provided name.
+func NewSessionParams(p NewSessionAttr, writer io.Writer) *Session {
 	s := new(Session)
 	s.writer = writer
-	s.Name = name
+	s.Name = p.Name
 	s.windows = make([]*Window, 0)
+
 	fmt.Fprintf(writer, "tmux kill-session -t \"%s\"\n", s.Name)
-	fmt.Fprintf(writer, "tmux new-session -d -s \"%s\" -n tmp\n", s.Name)
+	fmt.Fprintf(writer, newSessionCommandFromAttr(p)+"\n")
 	return s
+}
+
+func newSessionCommandFromAttr(p NewSessionAttr) string {
+	command := fmt.Sprintf("tmux new-session -d -s \"%s\" -n tmp", p.Name)
+	if p.Directory != "" {
+		command += " -c " + p.Directory
+	}
+	return command
 }
 
 // Creates window with provided name for this session

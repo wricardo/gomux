@@ -28,3 +28,17 @@ func TestNewSessionSimple(t *testing.T) {
 		t.Fatal("problem")
 	}
 }
+
+func TestNewSessionDirectory(t *testing.T) {
+	w := FakeWriter{
+		data: make([]byte, 0),
+	}
+	NewSessionParams(NewSessionAttr{
+		Name:      "mysession",
+		Directory: "/tmp/a",
+	}, &w)
+
+	if string(w.data) != "tmux kill-session -t \"mysession\"\ntmux new-session -d -s \"mysession\" -n tmp -c /tmp/a\n" {
+		t.Fatal("problem")
+	}
+}
