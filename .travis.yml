@@ -1,0 +1,15 @@
+language: go
+
+go:
+  - 1.4
+  - tip
+
+install:
+  - go get github.com/axw/gocov/gocov
+  - go get github.com/mattn/goveralls
+  - go get code.google.com/p/go.tools/cmd/cover
+  - make deps
+
+script: 
+  - go test
+  - $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken g9SuKapVcX1P08u7hIeeNF2B6CxsgUJEI
