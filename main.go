@@ -20,6 +20,10 @@ func NewPane(number int, window *Window) *Pane {
 	return p
 }
 
+type SplitAttr struct {
+	Directory string
+}
+
 func (this *Pane) Exec(command string) {
 	fmt.Fprintf(this.window.session.writer, "tmux send-keys -t \"%s\" \"%s\" %s\n", this.getTargetName(), strings.Replace(command, "\"", "\\\"", -1), "C-m")
 }
@@ -29,8 +33,40 @@ func (this *Pane) Vsplit() *Pane {
 	return this.window.AddPane()
 }
 
+func (this *Pane) VsplitWAttr(attr SplitAttr) *Pane {
+
+	command := "tmux split-window -h -t \"%s\""
+
+	if attr.Directory != "" {
+		command += " -c " + attr.Directory
+	} else if this.window.Directory != "" {
+		command += " -c " + this.window.Directory
+	} else if this.window.session.Directory != "" {
+		command += " -c " + this.window.session.Directory
+	}
+
+	fmt.Fprintf(this.window.session.writer, command+"\n", this.getTargetName())
+	return this.window.AddPane()
+}
+
 func (this *Pane) Split() *Pane {
 	fmt.Fprintf(this.window.session.writer, "tmux split-window -v -t \"%s\"\n", this.getTargetName())
+	return this.window.AddPane()
+}
+
+func (this *Pane) SplitWAttr(attr SplitAttr) *Pane {
+
+	command := "tmux split-window -v -t \"%s\""
+
+	if attr.Directory != "" {
+		command += " -c " + attr.Directory
+	} else if this.window.Directory != "" {
+		command += " -c " + this.window.Directory
+	} else if this.window.session.Directory != "" {
+		command += " -c " + this.window.session.Directory
+	}
+
+	fmt.Fprintf(this.window.session.writer, command+"\n", this.getTargetName())
 	return this.window.AddPane()
 }
 
@@ -62,24 +98,39 @@ func (this *Pane) getTargetName() string {
 type Window struct {
 	Number           int
 	Name             string
+	Directory        string
 	session          *Session
 	panes            []*Pane
 	split_commands   []string
 	next_pane_number int
 }
 
-func newWindow(number int, name string, session *Session) *Window {
+type WindowAttr struct {
+	Name      string
+	Directory string
+}
+
+func newWindow(number int, attr WindowAttr, session *Session) *Window {
 	w := new(Window)
-	w.Name = name
+	w.Name = attr.Name
+	w.Directory = attr.Directory
 	w.Number = number
 	w.session = session
 	w.next_pane_number = 0
 	w.panes = make([]*Pane, 0)
 	w.split_commands = make([]string, 0)
 	w.AddPane()
-	if number != 0 {
-		fmt.Fprintf(session.writer, "tmux new-window %s -n \"%s\"\n", w.t(), w.Name)
+
+	cmd := "tmux new-window %s -n \"%s\""
+
+	if attr.Directory != "" {
+		cmd += " -c " + attr.Directory
 	}
+
+	if number != 0 {
+		fmt.Fprintf(session.writer, cmd+"\n", w.t(), w.Name)
+	}
+
 	fmt.Fprintf(session.writer, "tmux rename-window %s \"%s\"\n", w.t(), w.Name)
 	return w
 }
@@ -118,6 +169,7 @@ func (this *Window) Select() {
 // Use the method NewSession to create a Session instance.
 type Session struct {
 	Name               string
+	Directory          string
 	windows            []*Window
 	directory          string
 	next_window_number int
@@ -126,36 +178,51 @@ type Session struct {
 
 // Creates a new Tmux Session. It will kill any existing session with the provided name.
 func NewSession(name string, writer io.Writer) *Session {
-	s := new(Session)
-	s.writer = writer
-	s.Name = name
-	s.windows = make([]*Window, 0)
-	return NewSessionRaw(s, writer)
-}
-
-// Creates a new Tmux Session with specific directory as the default dir. It kill any existing session with the provided name.
-func NewSessionOnDir(name string, directory string, writer io.Writer) *Session {
-	s := new(Session)
-	s.writer = writer
-	s.Name = name
-	s.windows = make([]*Window, 0)
-	s.directory = directory
-	return NewSessionRaw(s, writer)
-}
-
-func NewSessionRaw(s *Session, writer io.Writer) *Session {
-	var c string
-	if s.directory != "" {
-		c = " -c '" + s.directory + "'"
+	p := SessionAttr{
+		Name: name,
 	}
+	return NewSessionAttr(p, writer)
+}
+
+type SessionAttr struct {
+	Name      string
+	Directory string
+}
+
+// Creates a new Tmux Session based on NewSessionAttr. It will kill any existing session with the provided name.
+func NewSessionAttr(p SessionAttr, writer io.Writer) *Session {
+	s := new(Session)
+	s.writer = writer
+	s.Name = p.Name
+	s.Directory = p.Directory
+	s.windows = make([]*Window, 0)
+
 	fmt.Fprintf(writer, "tmux kill-session -t \"%s\"\n", s.Name)
-	fmt.Fprintf(writer, "tmux new-session -d %s -s \"%s\" -n tmp\n", c, s.Name)
+	fmt.Fprintf(writer, newSessionCommandFromAttr(p)+"\n")
 	return s
+}
+
+func newSessionCommandFromAttr(p SessionAttr) string {
+	command := fmt.Sprintf("tmux new-session -d -s \"%s\" -n tmp", p.Name)
+	if p.Directory != "" {
+		command += " -c " + p.Directory
+	}
+	return command
 }
 
 // Creates window with provided name for this session
 func (this *Session) AddWindow(name string) *Window {
-	w := newWindow(this.next_window_number, name, this)
+
+	attr := WindowAttr{
+		Name: name,
+	}
+
+	return this.AddWindowAttr(attr)
+}
+
+// Creates window with provided name for this session
+func (this *Session) AddWindowAttr(attr WindowAttr) *Window {
+	w := newWindow(this.next_window_number, attr, this)
 	this.windows = append(this.windows, w)
 	this.next_window_number = this.next_window_number + 1
 	return w
