@@ -284,3 +284,22 @@ tmux split-window -v -t "mySession:0.0" -c /tmp/session
 		t.Fatal("problem")
 	}
 }
+
+func TestSelectWindow(t *testing.T) {
+	w := FakeWriter{
+		data: make([]byte, 0),
+	}
+	sess := NewSession("mySession", &w)
+	window := sess.AddWindow("myWindow")
+	window.Select()
+
+	expected := `tmux kill-session -t "mySession"
+tmux new-session -d -s "mySession" -n tmp
+tmux rename-window -t "mySession:0" "myWindow"
+tmux select-window -t "mySession:0"
+`
+
+	if string(w.data) != expected {
+		t.Fatal("problem")
+	}
+}

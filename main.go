@@ -29,44 +29,40 @@ func (this *Pane) Exec(command string) {
 }
 
 func (this *Pane) Vsplit() *Pane {
-	fmt.Fprintf(this.window.session.writer, "tmux split-window -h -t \"%s\"\n", this.getTargetName())
+	fmt.Fprint(this.window.session.writer, splitWindow{h: true, t: this.getTargetName()})
 	return this.window.AddPane()
 }
 
 func (this *Pane) VsplitWAttr(attr SplitAttr) *Pane {
-
-	command := "tmux split-window -h -t \"%s\""
-
+	var c string
 	if attr.Directory != "" {
-		command += " -c " + attr.Directory
+		c = attr.Directory
 	} else if this.window.Directory != "" {
-		command += " -c " + this.window.Directory
+		c = this.window.Directory
 	} else if this.window.session.Directory != "" {
-		command += " -c " + this.window.session.Directory
+		c = this.window.session.Directory
 	}
 
-	fmt.Fprintf(this.window.session.writer, command+"\n", this.getTargetName())
+	fmt.Fprint(this.window.session.writer, splitWindow{h: true, t: this.getTargetName(), c: c})
 	return this.window.AddPane()
 }
 
 func (this *Pane) Split() *Pane {
-	fmt.Fprintf(this.window.session.writer, "tmux split-window -v -t \"%s\"\n", this.getTargetName())
+	fmt.Fprint(this.window.session.writer, splitWindow{v: true, t: this.getTargetName()})
 	return this.window.AddPane()
 }
 
 func (this *Pane) SplitWAttr(attr SplitAttr) *Pane {
-
-	command := "tmux split-window -v -t \"%s\""
-
+	var c string
 	if attr.Directory != "" {
-		command += " -c " + attr.Directory
+		c = attr.Directory
 	} else if this.window.Directory != "" {
-		command += " -c " + this.window.Directory
+		c = this.window.Directory
 	} else if this.window.session.Directory != "" {
-		command += " -c " + this.window.session.Directory
+		c = this.window.session.Directory
 	}
 
-	fmt.Fprintf(this.window.session.writer, command+"\n", this.getTargetName())
+	fmt.Fprint(this.window.session.writer, splitWindow{v: true, t: this.getTargetName(), c: c})
 	return this.window.AddPane()
 }
 
@@ -110,7 +106,7 @@ type WindowAttr struct {
 	Directory string
 }
 
-func newWindow(number int, attr WindowAttr, session *Session) *Window {
+func createWindow(number int, attr WindowAttr, session *Session) *Window {
 	w := new(Window)
 	w.Name = attr.Name
 	w.Directory = attr.Directory
@@ -121,17 +117,11 @@ func newWindow(number int, attr WindowAttr, session *Session) *Window {
 	w.split_commands = make([]string, 0)
 	w.AddPane()
 
-	cmd := "tmux new-window %s -n \"%s\""
-
-	if attr.Directory != "" {
-		cmd += " -c " + attr.Directory
-	}
-
 	if number != 0 {
-		fmt.Fprintf(session.writer, cmd+"\n", w.t(), w.Name)
+		fmt.Fprint(session.writer, newWindow{t: w.t(), n: w.Name, c: attr.Directory})
 	}
 
-	fmt.Fprintf(session.writer, "tmux rename-window %s \"%s\"\n", w.t(), w.Name)
+	fmt.Fprint(session.writer, renameWindow{t: w.t(), n: w.Name})
 	return w
 }
 
@@ -161,7 +151,7 @@ func (this *Window) Exec(command string) {
 }
 
 func (this *Window) Select() {
-	fmt.Fprintf(this.session.writer, "tmux select-window -t \"%s:%s\"\n", this.session.Name, fmt.Sprint(this.Number))
+	fmt.Fprint(this.session.writer, selectWindow{t: this.session.Name + ":" + fmt.Sprint(this.Number)})
 }
 
 // Session represents a tmux session.
@@ -197,17 +187,9 @@ func NewSessionAttr(p SessionAttr, writer io.Writer) *Session {
 	s.Directory = p.Directory
 	s.windows = make([]*Window, 0)
 
-	fmt.Fprintf(writer, "tmux kill-session -t \"%s\"\n", s.Name)
-	fmt.Fprintf(writer, newSessionCommandFromAttr(p)+"\n")
+	fmt.Fprint(writer, killSession{t: s.Name})
+	fmt.Fprint(writer, newSession{d: true, s: p.Name, c: p.Directory, n: "tmp"})
 	return s
-}
-
-func newSessionCommandFromAttr(p SessionAttr) string {
-	command := fmt.Sprintf("tmux new-session -d -s \"%s\" -n tmp", p.Name)
-	if p.Directory != "" {
-		command += " -c " + p.Directory
-	}
-	return command
 }
 
 // Creates window with provided name for this session
@@ -222,7 +204,7 @@ func (this *Session) AddWindow(name string) *Window {
 
 // Creates window with provided name for this session
 func (this *Session) AddWindowAttr(attr WindowAttr) *Window {
-	w := newWindow(this.next_window_number, attr, this)
+	w := createWindow(this.next_window_number, attr, this)
 	this.windows = append(this.windows, w)
 	this.next_window_number = this.next_window_number + 1
 	return w
