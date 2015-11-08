@@ -9,8 +9,7 @@ import (
 func main() {
 	session_name := "SESSION_NAME"
 
-	//s := gomux.NewSession(session_name, os.Stdout)
-	s := gomux.NewSessionOnDir(session_name, "/etc/", os.Stdout)
+	s := gomux.NewSession(session_name, os.Stdout)
 
 	//WINDOW 1
 	w1 := s.AddWindow("LOGS")

@@ -83,7 +83,7 @@ func (this *Pane) ResizeDown(num int) {
 }
 
 func (this *Pane) resize(prefix string, num int) {
-	fmt.Fprintf(this.window.session.writer, "tmux resize-pane -t \"%s\" -%s\n", this.getTargetName(), prefix, fmt.Sprint(num))
+	fmt.Fprintf(this.window.session.writer, "tmux resize-pane -t \"%s\" -%s %v\n", this.getTargetName(), prefix, fmt.Sprint(num))
 }
 
 func (this *Pane) getTargetName() string {
