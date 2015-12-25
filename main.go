@@ -187,9 +187,13 @@ func NewSessionAttr(p SessionAttr, writer io.Writer) *Session {
 	s.Directory = p.Directory
 	s.windows = make([]*Window, 0)
 
-	fmt.Fprint(writer, killSession{t: s.Name})
 	fmt.Fprint(writer, newSession{d: true, s: p.Name, c: p.Directory, n: "tmp"})
 	return s
+}
+
+// KillSession sends a command to kill the tmux session
+func KillSession(name string, writer io.Writer) {
+	fmt.Fprint(writer, killSession{t: name})
 }
 
 // Creates window with provided name for this session

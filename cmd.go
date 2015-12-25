@@ -7,7 +7,7 @@ type killSession struct {
 }
 
 func (this killSession) String() string {
-	return fmt.Sprintf("tmux kill-session -t \"%s\"\n", this.t)
+	return fmt.Sprintf("tmux kill-session -t \"%s\" > /dev/null 2>&1\n", this.t)
 }
 
 type newSession struct {

@@ -24,7 +24,7 @@ func TestNewSessionSimple(t *testing.T) {
 		t.Fatal("problem1")
 	}
 
-	if string(w.data) != "tmux kill-session -t \"mysession\"\ntmux new-session -d -s \"mysession\" -n tmp\n" {
+	if string(w.data) != "tmux new-session -d -s \"mysession\" -n tmp\n" {
 		t.Fatal("problem")
 	}
 }
@@ -38,7 +38,7 @@ func TestNewSessionDirectory(t *testing.T) {
 		Directory: "/tmp/a",
 	}, &w)
 
-	if string(w.data) != "tmux kill-session -t \"mysession\"\ntmux new-session -d -s \"mysession\" -n tmp -c /tmp/a\n" {
+	if string(w.data) != "tmux new-session -d -s \"mysession\" -n tmp -c /tmp/a\n" {
 		t.Fatal("problem")
 	}
 }
@@ -51,8 +51,7 @@ func TestNewWindow(t *testing.T) {
 	sess.AddWindow("myWindow")
 	sess.AddWindow("myWindow2")
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux new-window -t "mySession:1" -n "myWindow2"
 tmux rename-window -t "mySession:1" "myWindow2"
@@ -76,8 +75,7 @@ func TestNewWindowDirectory(t *testing.T) {
 	sess.AddWindow("myWindow")
 	sess.AddWindowAttr(attr)
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux new-window -t "mySession:1" -n "myWindow2" -c /tmp/a
 tmux rename-window -t "mySession:1" "myWindow2"
@@ -97,8 +95,7 @@ func TestVsplit(t *testing.T) {
 	p := window.Pane(0)
 	p.Vsplit()
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -h -t "mySession:0.0"
 `
@@ -117,8 +114,7 @@ func TestSplit(t *testing.T) {
 	p := window.Pane(0)
 	p.Split()
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -v -t "mySession:0.0"
 `
@@ -143,8 +139,7 @@ func TestSplitWAttr(t *testing.T) {
 
 	p.SplitWAttr(attr)
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -v -t "mySession:0.0" -c /tmp/c
 `
@@ -169,8 +164,7 @@ func TestVsplitWAttr(t *testing.T) {
 
 	p.VsplitWAttr(attr)
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -h -t "mySession:0.0" -c /tmp/c
 `
@@ -195,8 +189,7 @@ func TestVsplitWAttrBubbleWindow(t *testing.T) {
 
 	p.VsplitWAttr(attr)
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -h -t "mySession:0.0" -c /tmp/window
 `
@@ -222,8 +215,7 @@ func TestSplitWAttrBubbleWindow(t *testing.T) {
 
 	p.SplitWAttr(attr)
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -v -t "mySession:0.0" -c /tmp/window
 `
@@ -248,8 +240,7 @@ func TestVsplitWAttrBubbleSession(t *testing.T) {
 
 	p.VsplitWAttr(SplitAttr{})
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp -c /tmp/session
+	expected := `tmux new-session -d -s "mySession" -n tmp -c /tmp/session
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -h -t "mySession:0.0" -c /tmp/session
 `
@@ -274,8 +265,7 @@ func TestSplitWAttrBubbleSession(t *testing.T) {
 
 	p.SplitWAttr(SplitAttr{})
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp -c /tmp/session
+	expected := `tmux new-session -d -s "mySession" -n tmp -c /tmp/session
 tmux rename-window -t "mySession:0" "myWindow"
 tmux split-window -v -t "mySession:0.0" -c /tmp/session
 `
@@ -293,10 +283,23 @@ func TestSelectWindow(t *testing.T) {
 	window := sess.AddWindow("myWindow")
 	window.Select()
 
-	expected := `tmux kill-session -t "mySession"
-tmux new-session -d -s "mySession" -n tmp
+	expected := `tmux new-session -d -s "mySession" -n tmp
 tmux rename-window -t "mySession:0" "myWindow"
 tmux select-window -t "mySession:0"
+`
+
+	if string(w.data) != expected {
+		t.Fatal("problem")
+	}
+}
+
+func TestKillSession(t *testing.T) {
+	w := FakeWriter{
+		data: make([]byte, 0),
+	}
+	KillSession("mySession", &w)
+
+	expected := `tmux kill-session -t "mySession" > /dev/null 2>&1
 `
 
 	if string(w.data) != expected {

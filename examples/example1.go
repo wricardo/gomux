@@ -1,9 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"github.com/wricardo/gomux"
+	"os"
 )
 
 func main() {
@@ -12,13 +11,13 @@ func main() {
 	s := gomux.NewSession(session_name, os.Stdout)
 
 	//WINDOW 1
-	w1 := s.AddWindow("LOGS")
+	w1 := s.AddWindow("Monitoring")
 
 	w1p0 := w1.Pane(0)
-	w1p0.Exec("tail -f /var/log/authd.log")
+	w1p0.Exec("htop")
 
 	w1p1 := w1.Pane(0).Split()
-	w1p1.Exec("tail -f /var/log/system.log")
+	w1p1.Exec("tail -f /var/log/syslog")
 
 	//WINDOW 2
 	w2 := s.AddWindow("Vim")
@@ -31,4 +30,5 @@ func main() {
 	w2p1.Exec("ls -la")
 
 	w2p0.ResizeRight(30)
+	w1.Select()
 }

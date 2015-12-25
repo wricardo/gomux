@@ -4,7 +4,8 @@ gomux
 
 Go wrapper to create tmux sessions, windows and panes.
 
-Example:
+### Example
+example.go:
 ```go
 package main
 import (
@@ -17,13 +18,13 @@ func main() {
 	s := gomux.NewSession(session_name, os.Stdout)
 
 	//WINDOW 1
-	w1 := s.AddWindow("LOGS")
+	w1 := s.AddWindow("Monitoring")
 
 	w1p0 := w1.Pane(0)
-	w1p0.Exec("tail -f /var/log/authd.log")
+	w1p0.Exec("htop")
 
 	w1p1 := w1.Pane(0).Split()
-	w1p1.Exec("tail -f /var/log/system.log")
+	w1p1.Exec("tail -f /var/log/syslog")
 
 	//WINDOW 2
 	w2 := s.AddWindow("Vim")
@@ -36,16 +37,19 @@ func main() {
 	w2p1.Exec("ls -la")
 
 	w2p0.ResizeRight(30)
+	w1.Select()
 }
 ```
-Will print: 
+To print the tmux commands:
 ```
-tmux kill-session -t "SESSION_NAME"
+go run example.go 
+```
+```
 tmux new-session -d -s "SESSION_NAME" -n tmp
-tmux rename-window -t "SESSION_NAME:0" "LOGS"
-tmux send-keys -t "SESSION_NAME:0.0" "tail -f /var/log/authd.log" C-m
+tmux rename-window -t "SESSION_NAME:0" "Monitoring"
+tmux send-keys -t "SESSION_NAME:0.0" "htop" C-m
 tmux split-window -v -t "SESSION_NAME:0.0"
-tmux send-keys -t "SESSION_NAME:0.1" "tail -f /var/log/system.log" C-m
+tmux send-keys -t "SESSION_NAME:0.1" "tail -f /var/log/syslog" C-m
 tmux new-window -t "SESSION_NAME:1" -n "Vim"
 tmux rename-window -t "SESSION_NAME:1" "Vim"
 tmux send-keys -t "SESSION_NAME:1.0" "echo \"this is to vim\" | vim -" C-m
@@ -53,4 +57,12 @@ tmux split-window -h -t "SESSION_NAME:1.0"
 tmux send-keys -t "SESSION_NAME:1.1" "cd /tmp/" C-m
 tmux send-keys -t "SESSION_NAME:1.1" "ls -la" C-m
 tmux resize-pane -t "SESSION_NAME:1.0" -R 30
+tmux select-window -t "SESSION_NAME:0"
 ```
+
+To create and attach to the tmux session:
+```
+go run example.go | bash
+tmux attach -t SESSION_NAME
+```
+
