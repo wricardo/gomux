@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Gomux by wricardo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Gomux</h1>
+      <h2 class="project-tagline">Go wrapper to create tmux sessions, windows and panes.</h2>
+      <a href="https://github.com/wricardo/gomux" class="btn">View on GitHub</a>
+      <a href="https://github.com/wricardo/gomux/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/wricardo/gomux/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="gomux" class="anchor" href="#gomux" aria-hidden="true"><span class="octicon octicon-link"></span></a>gomux</h1>
+
+<p><a href="https://travis-ci.org/wricardo/gomux"><img src="https://travis-ci.org/wricardo/gomux.svg?branch=master" alt="Build Status"></a> <a href="https://coveralls.io/github/wricardo/gomux?branch=master"><img src="https://coveralls.io/repos/wricardo/gomux/badge.svg?branch=master&amp;service=github" alt="Coverage Status"></a> <a href="https://godoc.org/github.com/wricardo/gomux"><img src="https://godoc.org/github.com/wricardo/gomux?status.png" alt="GoDoc"></a></p>
+
+<p>Go wrapper to create tmux sessions, windows and panes.</p>
+
+<h3>
+<a id="example" class="anchor" href="#example" aria-hidden="true"><span class="octicon octicon-link"></span></a>Example</h3>
+
+<p>example.go:</p>
+
+<div class="highlight highlight-source-go"><pre><span class="pl-k">package</span> main
+<span class="pl-k">import</span> (
+    <span class="pl-s"><span class="pl-pds">"</span>os<span class="pl-pds">"</span></span>
+    <span class="pl-s"><span class="pl-pds">"</span>github.com/wricardo/gomux<span class="pl-pds">"</span></span>
+)
+<span class="pl-k">func</span> <span class="pl-en">main</span>() {
+    <span class="pl-smi">session_name</span> <span class="pl-k">:=</span> <span class="pl-s"><span class="pl-pds">"</span>SESSION_NAME<span class="pl-pds">"</span></span>
+
+    <span class="pl-smi">s</span> <span class="pl-k">:=</span> gomux.<span class="pl-c1">NewSession</span>(session_name, os.<span class="pl-smi">Stdout</span>)
+
+    <span class="pl-c">//WINDOW 1</span>
+    <span class="pl-smi">w1</span> <span class="pl-k">:=</span> s.<span class="pl-c1">AddWindow</span>(<span class="pl-s"><span class="pl-pds">"</span>Monitoring<span class="pl-pds">"</span></span>)
+
+    <span class="pl-smi">w1p0</span> <span class="pl-k">:=</span> w1.<span class="pl-c1">Pane</span>(<span class="pl-c1">0</span>)
+    w1p0.<span class="pl-c1">Exec</span>(<span class="pl-s"><span class="pl-pds">"</span>htop<span class="pl-pds">"</span></span>)
+
+    <span class="pl-smi">w1p1</span> <span class="pl-k">:=</span> w1.<span class="pl-c1">Pane</span>(<span class="pl-c1">0</span>).<span class="pl-c1">Split</span>()
+    w1p1.<span class="pl-c1">Exec</span>(<span class="pl-s"><span class="pl-pds">"</span>tail -f /var/log/syslog<span class="pl-pds">"</span></span>)
+
+    <span class="pl-c">//WINDOW 2</span>
+    <span class="pl-smi">w2</span> <span class="pl-k">:=</span> s.<span class="pl-c1">AddWindow</span>(<span class="pl-s"><span class="pl-pds">"</span>Vim<span class="pl-pds">"</span></span>)
+    <span class="pl-smi">w2p0</span> <span class="pl-k">:=</span> w2.<span class="pl-c1">Pane</span>(<span class="pl-c1">0</span>)
+
+    w2p0.<span class="pl-c1">Exec</span>(<span class="pl-s"><span class="pl-pds">"</span>echo <span class="pl-cce">\"</span>this is to vim<span class="pl-cce">\"</span> | vim -<span class="pl-pds">"</span></span>)
+
+    <span class="pl-smi">w2p1</span> <span class="pl-k">:=</span> w2p0.<span class="pl-c1">Vsplit</span>()
+    w2p1.<span class="pl-c1">Exec</span>(<span class="pl-s"><span class="pl-pds">"</span>cd /tmp/<span class="pl-pds">"</span></span>)
+    w2p1.<span class="pl-c1">Exec</span>(<span class="pl-s"><span class="pl-pds">"</span>ls -la<span class="pl-pds">"</span></span>)
+
+    w2p0.<span class="pl-c1">ResizeRight</span>(<span class="pl-c1">30</span>)
+    w1.<span class="pl-c1">Select</span>()
+}</pre></div>
+
+<p>To print the tmux commands:</p>
+
+<pre><code>go run example.go 
+</code></pre>
+
+<pre><code>tmux new-session -d -s "SESSION_NAME" -n tmp
+tmux rename-window -t "SESSION_NAME:0" "Monitoring"
+tmux send-keys -t "SESSION_NAME:0.0" "htop" C-m
+tmux split-window -v -t "SESSION_NAME:0.0"
+tmux send-keys -t "SESSION_NAME:0.1" "tail -f /var/log/syslog" C-m
+tmux new-window -t "SESSION_NAME:1" -n "Vim"
+tmux rename-window -t "SESSION_NAME:1" "Vim"
+tmux send-keys -t "SESSION_NAME:1.0" "echo \"this is to vim\" | vim -" C-m
+tmux split-window -h -t "SESSION_NAME:1.0"
+tmux send-keys -t "SESSION_NAME:1.1" "cd /tmp/" C-m
+tmux send-keys -t "SESSION_NAME:1.1" "ls -la" C-m
+tmux resize-pane -t "SESSION_NAME:1.0" -R 30
+tmux select-window -t "SESSION_NAME:0"
+</code></pre>
+
+<p>To create and attach to the tmux session:</p>
+
+<pre><code>go run example.go | bash
+tmux attach -t SESSION_NAME
+</code></pre>
+
+<p><img src="https://raw.githubusercontent.com/wricardo/gomux/master/examples/screenshot_example.png" alt="example screenshot"></p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/wricardo/gomux">Gomux</a> is maintained by <a href="https://github.com/wricardo">wricardo</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+            <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-71365538-2");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
