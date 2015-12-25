@@ -65,4 +65,4 @@ To create and attach to the tmux session:
 go run example.go | bash
 tmux attach -t SESSION_NAME
 ```
-
+![example screenshot](https://raw.githubusercontent.com/wricardo/gomux/master/examples/screenshot_example.png)
