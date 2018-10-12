@@ -30,7 +30,7 @@ func (this *Pane) Exec(command string) {
 
 func (this *Pane) Vsplit() *Pane {
 	fmt.Fprint(this.window.session.writer, splitWindow{h: true, t: this.getTargetName()})
-	return this.window.AddPane()
+	return this.window.AddPane(this.Number + 1)
 }
 
 func (this *Pane) VsplitWAttr(attr SplitAttr) *Pane {
@@ -44,12 +44,12 @@ func (this *Pane) VsplitWAttr(attr SplitAttr) *Pane {
 	}
 
 	fmt.Fprint(this.window.session.writer, splitWindow{h: true, t: this.getTargetName(), c: c})
-	return this.window.AddPane()
+	return this.window.AddPane(this.Number + 1)
 }
 
 func (this *Pane) Split() *Pane {
 	fmt.Fprint(this.window.session.writer, splitWindow{v: true, t: this.getTargetName()})
-	return this.window.AddPane()
+	return this.window.AddPane(this.Number + 1)
 }
 
 func (this *Pane) SplitWAttr(attr SplitAttr) *Pane {
@@ -63,7 +63,7 @@ func (this *Pane) SplitWAttr(attr SplitAttr) *Pane {
 	}
 
 	fmt.Fprint(this.window.session.writer, splitWindow{v: true, t: this.getTargetName(), c: c})
-	return this.window.AddPane()
+	return this.window.AddPane(this.Number + 1)
 }
 
 func (this *Pane) ResizeRight(num int) {
@@ -92,13 +92,12 @@ func (this *Pane) getTargetName() string {
 
 // Window Represent a tmux window. You usually should not create an instance of Window directly.
 type Window struct {
-	Number           int
-	Name             string
-	Directory        string
-	session          *Session
-	panes            []*Pane
-	split_commands   []string
-	next_pane_number int
+	Number         int
+	Name           string
+	Directory      string
+	session        *Session
+	panes          []*Pane
+	split_commands []string
 }
 
 type WindowAttr struct {
@@ -112,10 +111,9 @@ func createWindow(number int, attr WindowAttr, session *Session) *Window {
 	w.Directory = attr.Directory
 	w.Number = number
 	w.session = session
-	w.next_pane_number = 0
 	w.panes = make([]*Pane, 0)
 	w.split_commands = make([]string, 0)
-	w.AddPane()
+	w.AddPane(0)
 
 	if number != 0 {
 		fmt.Fprint(session.writer, newWindow{t: w.t(), n: w.Name, c: attr.Directory})
@@ -130,14 +128,13 @@ func (this *Window) t() string {
 }
 
 // Create a new Pane and add to this window
-func (this *Window) AddPane() *Pane {
-	pane := NewPane(this.next_pane_number, this)
+func (this *Window) AddPane(withNumber int) *Pane {
+	pane := NewPane(withNumber, this)
 	this.panes = append(this.panes, pane)
-	this.next_pane_number = this.next_pane_number + 1
 	return pane
 }
 
-// Find and return the Pane object by the number
+// Find and return the Pane object by its index in the panes slice
 func (this *Window) Pane(number int) *Pane {
 	return this.panes[number]
 }
