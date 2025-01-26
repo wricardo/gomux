@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/wricardo/gomux"
 	"os"
+
+	"github.com/wricardo/gomux"
 )
 
 func main() {

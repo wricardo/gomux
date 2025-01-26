@@ -6,207 +6,233 @@ import (
 	"strings"
 )
 
+// Pane represents a tmux pane inside a Window.
 type Pane struct {
 	Number   int
-	commands []string
+	commands []string // Not used in the current snippet, but might be used for queued commands later.
 	window   *Window
 }
 
+// NewPane creates and returns a pointer to a new Pane.
 func NewPane(number int, window *Window) *Pane {
-	p := new(Pane)
-	p.Number = number
-	p.commands = make([]string, 0)
-	p.window = window
-	return p
+	return &Pane{
+		Number:   number,
+		commands: make([]string, 0),
+		window:   window,
+	}
 }
 
+// SplitAttr holds optional attributes when splitting a pane, such as the working directory.
 type SplitAttr struct {
 	Directory string
 }
 
-func (this *Pane) Exec(command string) {
-	fmt.Fprintf(this.window.session.writer, "tmux send-keys -t \"%s\" \"%s\" %s\n", this.getTargetName(), strings.Replace(command, "\"", "\\\"", -1), "C-m")
+// Exec sends a shell command to this Pane, ending with an Enter key press.
+func (p *Pane) Exec(command string) {
+	escapedCmd := strings.Replace(command, "\"", "\\\"", -1)
+	fmt.Fprintf(p.window.session.writer,
+		"tmux send-keys -t \"%s\" \"%s\" C-m\n",
+		p.getTargetName(), escapedCmd,
+	)
 }
 
-func (this *Pane) Vsplit() *Pane {
-	fmt.Fprint(this.window.session.writer, splitWindow{h: true, t: this.getTargetName()})
-	return this.window.AddPane(this.Number + 1)
+// Vsplit splits the current pane vertically (left-right split).
+func (p *Pane) Vsplit() *Pane {
+	// splitWindow is presumably a type that implements String() for tmux command generation.
+	fmt.Fprint(p.window.session.writer, splitWindow{h: true, t: p.getTargetName()})
+	return p.window.AddPane(p.Number + 1)
 }
 
-func (this *Pane) VsplitWAttr(attr SplitAttr) *Pane {
-	var c string
-	if attr.Directory != "" {
-		c = attr.Directory
-	} else if this.window.Directory != "" {
-		c = this.window.Directory
-	} else if this.window.session.Directory != "" {
-		c = this.window.session.Directory
+// VsplitWAttr is a vertical split with an optional working directory.
+func (p *Pane) VsplitWAttr(attr SplitAttr) *Pane {
+	c := p.resolveDirectory(attr)
+	fmt.Fprint(p.window.session.writer, splitWindow{h: true, t: p.getTargetName(), c: c})
+	return p.window.AddPane(p.Number + 1)
+}
+
+// Split splits the current pane horizontally (top-bottom split).
+func (p *Pane) Split() *Pane {
+	fmt.Fprint(p.window.session.writer, splitWindow{v: true, t: p.getTargetName()})
+	return p.window.AddPane(p.Number + 1)
+}
+
+// SplitWAttr is a horizontal split with an optional working directory.
+func (p *Pane) SplitWAttr(attr SplitAttr) *Pane {
+	c := p.resolveDirectory(attr)
+	fmt.Fprint(p.window.session.writer, splitWindow{v: true, t: p.getTargetName(), c: c})
+	return p.window.AddPane(p.Number + 1)
+}
+
+// ResizeRight grows the pane to the right by the given number of cells.
+func (p *Pane) ResizeRight(num int) {
+	p.resize("R", num)
+}
+
+// ResizeLeft shrinks the pane to the left by the given number of cells.
+func (p *Pane) ResizeLeft(num int) {
+	p.resize("L", num)
+}
+
+// ResizeUp grows the pane upwards by the given number of cells.
+func (p *Pane) ResizeUp(num int) {
+	p.resize("U", num)
+}
+
+// ResizeDown grows the pane downwards by the given number of cells.
+// BUG FIX: changed "U" to "D" in the command flag.
+func (p *Pane) ResizeDown(num int) {
+	p.resize("D", num)
+}
+
+// getTargetName returns a string identifying this pane in tmux notation, e.g. "mySession:1.0".
+func (p *Pane) getTargetName() string {
+	return fmt.Sprintf("%s:%d.%d", p.window.session.Name, p.window.Number, p.Number)
+}
+
+// resolveDirectory determines which directory should be used when splitting a pane.
+func (p *Pane) resolveDirectory(attr SplitAttr) string {
+	switch {
+	case attr.Directory != "":
+		return attr.Directory
+	case p.window.Directory != "":
+		return p.window.Directory
+	case p.window.session.Directory != "":
+		return p.window.session.Directory
+	default:
+		return ""
 	}
-
-	fmt.Fprint(this.window.session.writer, splitWindow{h: true, t: this.getTargetName(), c: c})
-	return this.window.AddPane(this.Number + 1)
 }
 
-func (this *Pane) Split() *Pane {
-	fmt.Fprint(this.window.session.writer, splitWindow{v: true, t: this.getTargetName()})
-	return this.window.AddPane(this.Number + 1)
+// resize runs the tmux resize-pane command with the given direction flag and size.
+func (p *Pane) resize(prefix string, num int) {
+	fmt.Fprintf(p.window.session.writer,
+		"tmux resize-pane -t \"%s\" -%s %d\n",
+		p.getTargetName(), prefix, num,
+	)
 }
 
-func (this *Pane) SplitWAttr(attr SplitAttr) *Pane {
-	var c string
-	if attr.Directory != "" {
-		c = attr.Directory
-	} else if this.window.Directory != "" {
-		c = this.window.Directory
-	} else if this.window.session.Directory != "" {
-		c = this.window.session.Directory
-	}
-
-	fmt.Fprint(this.window.session.writer, splitWindow{v: true, t: this.getTargetName(), c: c})
-	return this.window.AddPane(this.Number + 1)
-}
-
-func (this *Pane) ResizeRight(num int) {
-	this.resize("R", num)
-}
-
-func (this *Pane) ResizeLeft(num int) {
-	this.resize("L", num)
-}
-
-func (this *Pane) ResizeUp(num int) {
-	this.resize("U", num)
-}
-
-func (this *Pane) ResizeDown(num int) {
-	this.resize("U", num)
-}
-
-func (this *Pane) resize(prefix string, num int) {
-	fmt.Fprintf(this.window.session.writer, "tmux resize-pane -t \"%s\" -%s %v\n", this.getTargetName(), prefix, fmt.Sprint(num))
-}
-
-func (this *Pane) getTargetName() string {
-	return this.window.session.Name + ":" + fmt.Sprint(this.window.Number) + "." + fmt.Sprint(this.Number)
-}
-
-// Window Represent a tmux window. You usually should not create an instance of Window directly.
+// Window represents a tmux window, which can contain multiple panes.
+//
+// Typically you create a Window through a Session's AddWindow method.
 type Window struct {
-	Number         int
-	Name           string
-	Directory      string
+	Number    int
+	Name      string
+	Directory string
+
 	session        *Session
 	panes          []*Pane
-	split_commands []string
+	split_commands []string // Unused in snippet, but you might use it for later expansions.
 }
 
+// WindowAttr holds optional attributes for creating a Window.
 type WindowAttr struct {
 	Name      string
 	Directory string
 }
 
+// createWindow is an internal helper to set up a new Window in a given Session.
 func createWindow(number int, attr WindowAttr, session *Session) *Window {
-	w := new(Window)
-	w.Name = attr.Name
-	w.Directory = attr.Directory
-	w.Number = number
-	w.session = session
-	w.panes = make([]*Pane, 0)
-	w.split_commands = make([]string, 0)
-	w.AddPane(0)
-
-	if number != 0 {
-		fmt.Fprint(session.writer, newWindow{t: w.t(), n: w.Name, c: attr.Directory})
+	w := &Window{
+		Name:      attr.Name,
+		Directory: attr.Directory,
+		Number:    number,
+		session:   session,
+		panes:     make([]*Pane, 0),
+		// Possibly used for storing commands to run after creation:
+		split_commands: make([]string, 0),
 	}
 
+	// Create the window in tmux, if number != 0.
+	// Typically the first window is created with the session, so you might skip.
+	if number != 0 {
+		fmt.Fprint(session.writer, newWindow{t: w.t(), n: w.Name, c: w.Directory})
+	}
+
+	// Rename the window to the desired name. (By default, tmux might assign something else.)
 	fmt.Fprint(session.writer, renameWindow{t: w.t(), n: w.Name})
+
+	// By default, add an initial pane (pane #0).
+	w.AddPane(0)
+
 	return w
 }
 
-func (this *Window) t() string {
-	return fmt.Sprintf("-t \"%s:%s\"", this.session.Name, fmt.Sprint(this.Number))
+// t is an internal helper that builds the tmux target string for this window, e.g. -t "mySession:1".
+func (w *Window) t() string {
+	return fmt.Sprintf("-t \"%s:%d\"", w.session.Name, w.Number)
 }
 
-// Create a new Pane and add to this window
-func (this *Window) AddPane(withNumber int) *Pane {
-	pane := NewPane(withNumber, this)
-	this.panes = append(this.panes, pane)
+// AddPane creates a new Pane in this Window. The `withNumber` is
+// the pane index (tmux's ID). Typically it's sequentially assigned.
+func (w *Window) AddPane(withNumber int) *Pane {
+	pane := NewPane(withNumber, w)
+	w.panes = append(w.panes, pane)
 	return pane
 }
 
-// Find and return the Pane object by its index in the panes slice
-func (this *Window) Pane(number int) *Pane {
-	return this.panes[number]
+// Pane returns the pane by its index in the window's internal slice (panes array).
+func (w *Window) Pane(number int) *Pane {
+	return w.panes[number]
 }
 
-// Executes a command on the first pane of this window
-//
-// // example
-// // example
-func (this *Window) Exec(command string) {
-	this.Pane(0).Exec(command)
+// Exec sends a command to the first pane of this window.
+func (w *Window) Exec(command string) {
+	w.Pane(0).Exec(command)
 }
 
-func (this *Window) Select() {
-	fmt.Fprint(this.session.writer, selectWindow{t: this.session.Name + ":" + fmt.Sprint(this.Number)})
+// Select makes this window the active window in the session.
+func (w *Window) Select() {
+	fmt.Fprint(w.session.writer, selectWindow{t: fmt.Sprintf("%s:%d", w.session.Name, w.Number)})
 }
 
-// Session represents a tmux session.
-//
-// Use the method NewSession to create a Session instance.
+// Session represents a tmux session. Use NewSession or NewSessionAttr to create.
 type Session struct {
-	Name               string
-	Directory          string
+	Name      string
+	Directory string
+
 	windows            []*Window
-	directory          string
 	next_window_number int
-	writer             io.Writer
+	// writer is where tmux commands are sent.
+	writer io.Writer
 }
 
-// Creates a new Tmux Session. It will kill any existing session with the provided name.
-func NewSession(name string, writer io.Writer) *Session {
-	p := SessionAttr{
-		Name: name,
-	}
-	return NewSessionAttr(p, writer)
-}
-
+// SessionAttr holds optional attributes for creating a new Session.
 type SessionAttr struct {
 	Name      string
 	Directory string
 }
 
-// Creates a new Tmux Session based on NewSessionAttr. It will kill any existing session with the provided name.
-func NewSessionAttr(p SessionAttr, writer io.Writer) *Session {
-	s := new(Session)
-	s.writer = writer
-	s.Name = p.Name
-	s.Directory = p.Directory
-	s.windows = make([]*Window, 0)
+// NewSession kills any existing session with the same name, then creates a new one.
+func NewSession(name string, writer io.Writer) *Session {
+	return NewSessionAttr(SessionAttr{Name: name}, writer)
+}
 
-	fmt.Fprint(writer, newSession{d: true, s: p.Name, c: p.Directory, n: "tmp"})
+// NewSessionAttr kills any existing session with the same name, then creates a new one with attributes.
+func NewSessionAttr(attr SessionAttr, writer io.Writer) *Session {
+	s := &Session{
+		Name:      attr.Name,
+		Directory: attr.Directory,
+		windows:   make([]*Window, 0),
+		writer:    writer,
+	}
+	fmt.Fprint(writer, newSession{d: true, s: attr.Name, c: attr.Directory, n: "tmp"})
 	return s
 }
 
-// KillSession sends a command to kill the tmux session
+// KillSession sends a command to kill an existing tmux session by name.
 func KillSession(name string, writer io.Writer) {
 	fmt.Fprint(writer, killSession{t: name})
 }
 
-// Creates window with provided name for this session
-func (this *Session) AddWindow(name string) *Window {
-
-	attr := WindowAttr{
-		Name: name,
-	}
-
-	return this.AddWindowAttr(attr)
+// AddWindow creates a new Window in the session with the specified name.
+func (s *Session) AddWindow(name string) *Window {
+	return s.AddWindowAttr(WindowAttr{Name: name})
 }
 
-// Creates window with provided name for this session
-func (this *Session) AddWindowAttr(attr WindowAttr) *Window {
-	w := createWindow(this.next_window_number, attr, this)
-	this.windows = append(this.windows, w)
-	this.next_window_number = this.next_window_number + 1
+// AddWindowAttr creates a new Window in the session with additional attributes (e.g., directory).
+func (s *Session) AddWindowAttr(attr WindowAttr) *Window {
+	w := createWindow(s.next_window_number, attr, s)
+	s.windows = append(s.windows, w)
+	s.next_window_number++
 	return w
 }
